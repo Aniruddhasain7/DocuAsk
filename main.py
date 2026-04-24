@@ -53,7 +53,8 @@ def setup_vectorstore(documents):
 def create_chain(vectorstore):
     llm = ChatGroq(
         model="llama-3.3-70b-versatile",
-        temperature=0
+        temperature=0,
+        groq_api_key=os.getenv("GROQ_API_KEY")
     )
 
     memory = ConversationBufferMemory(
