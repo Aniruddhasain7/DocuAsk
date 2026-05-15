@@ -26,49 +26,6 @@
 
 ---
 
-## 🚀 Getting Started
-
-### 1. Clone the repository
-
-```bash
-git clone https://github.com/your-username/DocuAsk.git
-cd DocuAsk
-```
-
-### 2. Create a virtual environment
-
-```bash
-python -m venv venv
-venv\Scripts\activate      # Windows
-# source venv/bin/activate  # macOS/Linux
-```
-
-### 3. Install dependencies
-
-```bash
-pip install -r requirements.txt
-```
-
-### 4. Set up environment variables
-
-Create a `.env` file in the project root:
-
-```env
-GROQ_API_KEY=your_groq_api_key_here
-```
-
-> Get your free API key at [console.groq.com](https://console.groq.com)
-
-### 5. Run the app
-
-```bash
-streamlit run main.py
-```
-
-The app will open at `http://localhost:8501`.
-
----
-
 ## 📂 Project Structure
 
 ```
