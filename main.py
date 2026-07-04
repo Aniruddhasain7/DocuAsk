@@ -166,16 +166,16 @@ section[data-testid="stSidebar"] {
 
 .header-container {
     text-align: center;
-    margin-bottom: 30px;
-    padding: 20px 0;
+    margin-bottom: 16px;
+    padding: 12px 0 6px;
 }
 .header-logo {
-    font-size: 3rem;
-    margin-bottom: 10px;
+    font-size: 2.5rem;
+    margin-bottom: 6px;
     animation: float 3s ease-in-out infinite;
 }
 .header-title {
-    font-size: 2.8rem;
+    font-size: 2.4rem;
     font-weight: 800;
     background: linear-gradient(135deg, #a29bfe 0%, #6C5CE7 50%, #4834DF 100%);
     -webkit-background-clip: text;
@@ -185,13 +185,13 @@ section[data-testid="stSidebar"] {
 }
 .header-tagline {
     color: #718096;
-    font-size: 1.1rem;
-    margin-top: 8px;
+    font-size: 1rem;
+    margin-top: 6px;
     font-weight: 400;
 }
 @keyframes float {
     0% { transform: translateY(0px); }
-    50% { transform: translateY(-10px); }
+    50% { transform: translateY(-8px); }
     100% { transform: translateY(0px); }
 }
 
@@ -199,9 +199,9 @@ section[data-testid="stSidebar"] {
     background: rgba(28, 28, 38, 0.6);
     border: 1px solid #23232f;
     border-radius: 16px;
-    padding: 30px;
+    padding: 20px 24px;
     max-width: 600px;
-    margin: 40px auto;
+    margin: 8px auto;
     box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
     backdrop-filter: blur(4px);
 }
