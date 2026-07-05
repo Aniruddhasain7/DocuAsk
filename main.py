@@ -88,6 +88,11 @@ html, body, [class*="css"], .stApp {
     font-family: 'Plus Jakarta Sans', sans-serif;
 }
 
+header[data-testid="stHeader"] {
+    visibility: hidden;
+    height: 0%;
+}
+
 section[data-testid="stSidebar"] {
     background-color: #121218 !important;
     border-right: 1px solid #23232f;
