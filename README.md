@@ -172,15 +172,3 @@ flowchart TD
 | 5 | **Generate Context-Aware Answer** | System ↔ Groq LLM | `ConversationalRetrievalChain` passes retrieved chunks + full chat history to Groq's LLM and streams back the answer |
 | 6 | **Reset Session** | User | Clears the FAISS index, conversation chain, and entire chat history to start fresh |
 | 7 | **View Chat History** | User | All prior Q&A pairs are rendered in the chat window with full conversational memory |
-
----
-
-## 🤝 Contributing
-
-Contributions, issues, and feature requests are welcome! Feel free to open an issue or submit a pull request.
-
----
-
-## 📜 License
-
-This project is open source. See the repository for license details.
