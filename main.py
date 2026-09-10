@@ -674,7 +674,7 @@ else:
     for msg in st.session_state.chat_history:
         avatar = "👤" if msg["role"] == "user" else "🤖"
         with st.chat_message(msg["role"], avatar=avatar):
-            role_label = "OPERATOR // QUERY" if msg["role"] == "user" else "DOCUASK_CORE // INFERENCE"
+            role_label = "USER" if msg["role"] == "user" else "DOCUASK AI"
             label_class = "role-user" if msg["role"] == "user" else "role-assistant"
             st.markdown(f'<div class="chat-role-label {label_class}">{role_label}</div>', unsafe_allow_html=True)
             st.markdown(msg["content"])
@@ -691,11 +691,11 @@ if user_input:
         })
 
         with st.chat_message("user", avatar="👤"):
-            st.markdown('<div class="chat-role-label role-user">OPERATOR // QUERY</div>', unsafe_allow_html=True)
+            st.markdown('<div class="chat-role-label role-user">USER</div>', unsafe_allow_html=True)
             st.markdown(user_input)
 
         with st.chat_message("assistant", avatar="🤖"):
-            st.markdown('<div class="chat-role-label role-assistant">DOCUASK_CORE // INFERENCE</div>', unsafe_allow_html=True)
+            st.markdown('<div class="chat-role-label role-assistant">DOCUASK AI</div>', unsafe_allow_html=True)
             with st.spinner("🤖 Neural Core Synthesizing Response..."):
                 response = st.session_state.conversation_chain.invoke({
                     "question": user_input
