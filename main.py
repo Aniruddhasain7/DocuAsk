@@ -4,12 +4,21 @@ import warnings
 import logging
 import pathlib
 import hashlib
+import zipfile
+import base64
+import io
+import uuid
+
+os.environ["ANONYMIZED_TELEMETRY"] = "False"
 from dotenv import load_dotenv
 import streamlit as st
+from PIL import Image
 
 from langchain_community.document_loaders import PyPDFLoader, Docx2txtLoader, TextLoader, CSVLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain_community.vectorstores import FAISS
+from langchain_chroma import Chroma
+import chromadb
+from chromadb.api.client import SharedSystemClient
 from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain_groq import ChatGroq
 from langchain.memory import ConversationBufferMemory
@@ -22,24 +31,130 @@ logging.getLogger("huggingface_hub").setLevel(logging.ERROR)
 
 load_dotenv()
 
+def explain_image_with_groq(pil_img, label="embedded image"):
+    api_key = os.getenv("GROQ_API_KEY")
+    if not api_key:
+        return ""
+    try:
+        from groq import Groq
+        client = Groq(api_key=api_key)
+
+        if pil_img.mode in ("RGBA", "LA") or (pil_img.mode == "P" and "transparency" in pil_img.info):
+            bg = Image.new("RGB", pil_img.size, (255, 255, 255))
+            bg.paste(pil_img, mask=pil_img.split()[-1])
+            pil_img = bg
+        else:
+            pil_img = pil_img.convert("RGB")
+
+        max_dimension = 1200
+        if max(pil_img.size) > max_dimension:
+            pil_img = pil_img.copy()
+            pil_img.thumbnail((max_dimension, max_dimension))
+
+        buf = io.BytesIO()
+        pil_img.save(buf, format="JPEG", quality=85)
+        b64_str = base64.b64encode(buf.getvalue()).decode("utf-8")
+        data_url = f"data:image/jpeg;base64,{b64_str}"
+
+        prompt = (
+            "Analyze this diagram/image found in a document in comprehensive detail.\n"
+            "1. Overview: What is this diagram, flowchart, UML chart, UI wireframe, or visual illustrating?\n"
+            "2. Complete Entities & Text: Transcribe all class names, method names, variable names, labels, arrows, relationships, and data values.\n"
+            "3. Structural Relationships: Detail connections, hierarchies, inheritance, and dependencies shown in the diagram.\n"
+            "Explain everything factually and thoroughly so someone reading this text gets all the information contained in the visual diagram."
+        )
+
+        response = client.chat.completions.create(
+            model="qwen/qwen3.8-27b",
+            messages=[{
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": prompt},
+                    {"type": "image_url", "image_url": {"url": data_url}}
+                ]
+            }],
+            temperature=0.1,
+            max_tokens=1500
+        )
+        return response.choices[0].message.content or ""
+    except Exception as e:
+        logging.warning(f"Groq Vision analysis error for {label}: {e}")
+        return ""
+
+
 def load_document(file_path):
     ext = file_path.split(".")[-1].lower()
 
     if ext == "pdf":
         loader = PyPDFLoader(file_path)
+        docs = loader.load()
+
+        try:
+            import pypdfium2 as pdfium
+            with pdfium.PdfDocument(file_path) as pdf:
+                for idx in range(min(len(pdf), len(docs))):
+                    doc = docs[idx]
+                    if len(doc.page_content.strip()) < 250 or len(pdf) <= 3:
+                        pil_img = pdf[idx].render(scale=2).to_pil()
+                        explanation = explain_image_with_groq(pil_img, label=f"PDF page {idx + 1}")
+                        if explanation.strip():
+                            doc.page_content += f"\n\n[Visual Diagram Analysis for Page {idx + 1}]:\n{explanation}"
+        except Exception as e:
+            logging.warning(f"PDF visual inspection error: {e}")
+
+        return docs
+
     elif ext in ["docx", "doc"]:
         loader = Docx2txtLoader(file_path)
+        docs = loader.load()
+
+        if ext == "docx" and docs:
+            try:
+                with zipfile.ZipFile(file_path, "r") as docx_zip:
+                    image_files = [f for f in docx_zip.namelist() if f.startswith("word/media/")]
+                    explanations = []
+                    for img_name in image_files:
+                        img_data = docx_zip.read(img_name)
+                        try:
+                            pil_img = Image.open(io.BytesIO(img_data))
+                            if pil_img.width >= 100 and pil_img.height >= 100:
+                                explanation = explain_image_with_groq(
+                                    pil_img,
+                                    label=f"DOCX embedded image {img_name}"
+                                )
+                                if explanation.strip():
+                                    explanations.append(
+                                        f"\n\n[Detected Embedded Figure ({os.path.basename(img_name)}) Visual Explanation]:\n"
+                                        f"{explanation}"
+                                    )
+                        except Exception as img_err:
+                            logging.warning(f"Failed to process DOCX image {img_name}: {img_err}")
+
+                    if explanations:
+                        docs[0].page_content += "".join(explanations)
+            except Exception as docx_err:
+                logging.warning(f"DOCX image inspection error: {docx_err}")
+
+        return docs
+
     elif ext == "txt":
         loader = TextLoader(file_path, encoding="utf-8")
+        return loader.load()
+
     elif ext == "csv":
         loader = CSVLoader(file_path, encoding="utf-8")
+        return loader.load()
+
     else:
         raise ValueError("Unsupported file format")
 
-    return loader.load()
-
 
 def setup_vectorstore(documents):
+    try:
+        SharedSystemClient.clear_system_cache()
+    except Exception:
+        pass
+
     embeddings = HuggingFaceEmbeddings(
         model_name="sentence-transformers/all-MiniLM-L6-v2"
     )
@@ -50,7 +165,17 @@ def setup_vectorstore(documents):
     )
 
     chunks = splitter.split_documents(documents)
-    vectorstore = FAISS.from_documents(chunks, embeddings)
+    if not chunks:
+        raise ValueError("No readable text or visual content could be extracted from this document.")
+
+    client = chromadb.Client()
+    collection_name = f"docuask_{uuid.uuid4().hex[:12]}"
+    vectorstore = Chroma.from_documents(
+        documents=chunks,
+        embedding=embeddings,
+        client=client,
+        collection_name=collection_name
+    )
     total_chars = sum(len(d.page_content) for d in documents)
     return vectorstore, len(chunks), total_chars
 
@@ -461,15 +586,6 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-MIME_TO_EXT = {
-    "application/pdf": ".pdf",
-    "application/vnd.openxmlformats-officedocument.wordprocessingml.document": ".docx",
-    "application/msword": ".doc",
-    "text/plain": ".txt",
-    "text/csv": ".csv",
-    "application/csv": ".csv"
-}
-
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
 
@@ -492,6 +608,11 @@ def reset_session():
     st.session_state.doc_stats = {}
     if "vectorstore" in st.session_state:
         del st.session_state.vectorstore
+    try:
+        from chromadb.api.client import SharedSystemClient
+        SharedSystemClient.clear_system_cache()
+    except Exception:
+        pass
     st.session_state.uploader_key += 1
 
 def format_size(bytes_size):
@@ -554,7 +675,7 @@ with st.sidebar:
                 </div>
                 <div class="hud-stat-box">
                     <div class="hud-stat-label">Retriever</div>
-                    <div class="hud-stat-val">FAISS-384D</div>
+                    <div class="hud-stat-val">CHROMA-384D</div>
                 </div>
             </div>
             <div class="hud-status-badge">
@@ -575,10 +696,10 @@ with st.sidebar:
     if uploaded_file or len(st.session_state.chat_history) > 0:
         st.markdown("""
         <div style="font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; color: #64748B; margin-bottom: 8px; letter-spacing: 0.08em;">
-            [ BUFFER CONTROLS ]
+            [ SESSION CONTROLS ]
         </div>
         """, unsafe_allow_html=True)
-        if st.button("⚡ PURGE BUFFER & RESET", type="secondary", use_container_width=True):
+        if st.button("🔄 CLEAR & RESET SESSION", type="secondary", use_container_width=True):
             reset_session()
             st.rerun()
         st.markdown('<div style="height: 1px; background: rgba(0, 242, 254, 0.12); margin: 18px 0;"></div>', unsafe_allow_html=True)
@@ -588,8 +709,8 @@ with st.sidebar:
         [ SUPPORTED INGEST MODULES ]
     </div>
     <div class="format-chip-row">
-        <div class="format-chip"><strong>PDF</strong> Portable Doc</div>
-        <div class="format-chip"><strong>DOCX</strong> Word Spec</div>
+        <div class="format-chip"><strong>PDF</strong> Smart Visual & Text</div>
+        <div class="format-chip"><strong>DOCX</strong> Word & Embedded Graphics</div>
         <div class="format-chip"><strong>TXT</strong> Raw Stream</div>
         <div class="format-chip"><strong>CSV</strong> Tabular Matrix</div>
     </div>
@@ -602,12 +723,8 @@ if uploaded_file:
     if st.session_state.processed_file_hash != file_hash:
         file_ext = pathlib.Path(uploaded_file.name).suffix.lower()
         if file_ext not in [".pdf", ".docx", ".doc", ".txt", ".csv"]:
-            mime_type = getattr(uploaded_file, "type", "")
-            if mime_type in MIME_TO_EXT:
-                file_ext = MIME_TO_EXT[mime_type]
-            else:
-                st.error("Unsupported file format. Please upload a PDF, DOCX, TXT, or CSV file.")
-                st.stop()
+            st.error("Unsupported file format. Please upload a PDF, DOCX, TXT, or CSV file.")
+            st.stop()
 
         temp_path = None
         success = False
@@ -648,7 +765,7 @@ if not st.session_state.conversation_chain:
         <div class="capability-card">
             <div class="capability-icon">⚡</div>
             <div class="capability-title">Parallel Embeddings</div>
-            <div class="capability-desc">High-density chunking with FAISS vector similarity mapping for instantaneous sub-second recall.</div>
+            <div class="capability-desc">High-density chunking with Chroma vector similarity mapping for instantaneous sub-second recall.</div>
         </div>
         <div class="capability-card">
             <div class="capability-icon">🧠</div>
@@ -658,7 +775,7 @@ if not st.session_state.conversation_chain:
         <div class="capability-card">
             <div class="capability-icon">🛡️</div>
             <div class="capability-title">Autonomous Parsing</div>
-            <div class="capability-desc">Seamless ingestion pipeline supporting multi-modal enterprise documents: PDF, DOCX, TXT, & CSV.</div>
+            <div class="capability-desc">Seamless ingestion pipeline supporting multi-modal enterprise documents: PDF, DOCX, TXT, CSV, & Visual Diagrams.</div>
         </div>
     </div>
     <div style="background: rgba(13, 19, 32, 0.6); border: 1px dashed rgba(0, 242, 254, 0.25); border-radius: 12px; padding: 24px; text-align: center; max-width: 600px; margin: 30px auto; backdrop-filter: blur(8px);">

@@ -1,17 +1,18 @@
 # 📑 DocuAsk
 
-**DocuAsk** is an AI-powered document Q&A application that lets you upload a document and have a conversational chat with its contents — powered by Groq's LLM and LangChain's retrieval pipeline.
+**DocuAsk** is an AI-powered document intelligence application that lets you upload complex documents and have context-aware, multi-turn conversations with their contents — powered by Groq's high-speed inference engine, LangChain's retrieval pipeline, and ChromaDB.
 
 ---
 
 ## ✨ Features
 
-- 📄 **Multi-format support** — Upload PDF, DOCX, DOC, TXT, and CSV files
-- 🧠 **Conversational memory** — Ask follow-up questions; the app remembers your full chat history
-- ⚡ **Fast inference** — Uses Groq's blazing-fast inference API
-- 🔍 **Semantic search** — Documents are chunked and embedded using `sentence-transformers/all-MiniLM-L6-v2` via FAISS vector store
-- 🔄 **Smart reloading** — Documents are only reprocessed when a new file is uploaded (SHA-256 hash comparison)
-- 🎨 **Premium dark UI** — Custom dark theme with animated header, glassmorphism cards, and gradient accents
+- 📄 **Multi-format Document Ingestion** — Upload and analyze PDF, DOCX, DOC, TXT, and CSV files.
+- 👁️ **Embedded Visual Intelligence** — Automatically detects and explains diagrams, flowcharts, UML charts, figures, and scanned pages inside PDFs and Word documents using Groq Vision (`qwen/qwen3.8-27b`).
+- 🧠 **Conversational Memory** — Ask follow-up questions seamlessly with full multi-turn conversational context via `ConversationBufferMemory`.
+- ⚡ **High-Speed Inference** — Sub-second response generation powered by Groq LPUs (`openai/gpt-oss-120b`).
+- 🔍 **Neural Semantic Search** — High-density document chunking embedded with `sentence-transformers/all-MiniLM-L6-v2` and indexed via **ChromaDB**.
+- 🔄 **Smart Session Lifecycle** — SHA-256 document hashing prevents redundant re-embedding, with one-click instant session reset.
+- 🎨 **Cyberpunk Dark UI** — Custom neon HUD theme with live vector metrics, glowing telemetry badges, and glassmorphism interface cards.
 
 ---
 
@@ -27,14 +28,15 @@
 
 ## 🛠️ Tech Stack
 
-| Layer        | Technology                                    |
-| ------------ | --------------------------------------------- |
-| Frontend     | Streamlit `1.37.0`                            |
-| LLM          | Groq API — `openai/gpt-oss-120b`              |
-| Embeddings   | HuggingFace — `all-MiniLM-L6-v2`             |
-| Vector Store | FAISS (CPU)                                   |
-| Framework    | LangChain (`ConversationalRetrievalChain`)    |
-| Memory       | `ConversationBufferMemory`                    |
+| Layer | Technology | Details |
+| :--- | :--- | :--- |
+| **Frontend** | Streamlit `1.37.0` | Custom cyberpunk dark theme & glassmorphic HUD |
+| **LLM (Chat)** | Groq API — `openai/gpt-oss-120b` | Ultra-fast context-grounded reasoning |
+| **Vision AI** | Groq API — `qwen/qwen3.8-27b` | Document diagram, chart, and visual explanation |
+| **Embeddings** | HuggingFace — `all-MiniLM-L6-v2` | 384-dimensional dense neural embeddings |
+| **Vector Store** | **ChromaDB** (`langchain-chroma`) | In-memory ephemeral vector database |
+| **Framework** | LangChain `0.2.x` | `ConversationalRetrievalChain` |
+| **PDF Engine** | `pypdf` + `pypdfium2` | Text stream parsing & high-res visual page rendering |
 
 ---
 
@@ -42,13 +44,14 @@
 
 ```
 DocuAsk/
-├── main.py                  # Main Streamlit application
+├── main.py                  # Main Streamlit application & RAG pipeline
 ├── requirements.txt         # Python dependencies
-├── .env                     # Environment variables (not committed)
+├── .env                     # Environment variables (GROQ_API_KEY)
 ├── .streamlit/
 │   └── config.toml          # Streamlit dark theme configuration
 ├── .devcontainer/
 │   └── devcontainer.json    # GitHub Codespaces configuration
+├── assets/                  # Icons and demo preview media
 ├── .gitignore
 └── README.md
 ```
@@ -59,8 +62,8 @@ DocuAsk/
 
 ### Prerequisites
 
-- Python **3.9+**
-- A valid [Groq API key](https://console.groq.com)
+- Python **3.9 – 3.11**
+- A free [Groq API key](https://console.groq.com)
 
 ### 1. Clone the repository
 
@@ -111,12 +114,12 @@ This project includes a pre-configured Dev Container for instant cloud developme
 
 1. Click **Code → Codespaces → Create codespace on main** on GitHub
 2. Wait for the container to build and dependencies to install
-3. The Streamlit app starts automatically on port **8501** and opens in a preview pane
+3. The Streamlit app starts automatically on port **8501**
 4. Add your `GROQ_API_KEY` to the Codespace secrets
 
 ---
 
-## 📋 How It Works
+## 📋 Architecture & Data Flow
 
 The diagram below shows all actors and their interactions with the DocuAsk system.
 
@@ -124,51 +127,60 @@ The diagram below shows all actors and their interactions with the DocuAsk syste
 flowchart TD
     subgraph Actors
         U(["👤 User"])
-        G(["🤖 Groq LLM"])
-        F(["🗄️ FAISS\nVector Store"])
+        GV(["👁️ Groq Vision\n(Qwen VL)"])
+        GL(["🤖 Groq LLM\n(Chat Core)"])
+        C(["🗄️ ChromaDB\nVector Store"])
     end
 
     subgraph DocuAsk System
         UC1["📥 Upload Document\n(PDF / DOCX / TXT / CSV)"]
-        UC2["🔍 Process & Embed\nDocument"]
-        UC3["💬 Ask Question"]
-        UC4["🧠 Retrieve Relevant\nChunks"]
-        UC5["✍️ Generate\nContext-Aware Answer"]
-        UC6["🔄 Reset Session"]
-        UC7["📋 View Chat History"]
+        UC2["🔍 Parse Text & Render\nEmbedded Visuals"]
+        UC3["🧠 Generate Embeddings &\nIndex in ChromaDB"]
+        UC4["💬 Ask Question"]
+        UC5["⚡ Semantic Similarity\nVector Retrieval"]
+        UC6["✍️ Synthesize\nContextual Answer"]
+        UC7["🔄 Reset Session"]
+        UC8["📋 Conversational History"]
     end
 
-    %% User interactions
-    U -->|"1 · Uploads file"| UC1
-    U -->|"3 · Types question"| UC3
-    U -->|"5 · Reads response"| UC7
-    U -->|"Optionally"| UC6
+    %% Ingestion flow
+    U -->|"1 · Uploads document"| UC1
+    UC1 -->|"SHA-256 check (if new)"| UC2
+    UC2 <-->|"Extract & explain diagrams/charts"| GV
+    UC2 -->|"Text + visual explanations"| UC3
+    UC3 -->|"384D vectors stored in"| C
 
-    %% Internal system flow
-    UC1 -->|"SHA-256 hash check\n→ only if new"| UC2
-    UC2 -->|"Chunks + embeddings\nstored in"| F
-    UC3 -->|"Semantic similarity\nsearch"| UC4
-    UC4 <-->|"Query vectors"| F
-    UC4 -->|"Top-k chunks\npassed as context"| UC5
-    UC5 <-->|"LLM inference\n(ConversationalRetrievalChain)"| G
-    UC5 -->|"Answer appended to"| UC7
-    UC6 -->|"Clears vector store,\nchain & history"| UC2
+    %% Query flow
+    U -->|"2 · Types question"| UC4
+    UC4 -->|"Query vector search"| UC5
+    UC5 <-->|"Retrieve top-k relevant chunks"| C
+    UC5 -->|"Pass chunks + chat history"| UC6
+    UC6 <-->|"ConversationalRetrievalChain"| GL
+    UC6 -->|"Stream response to"| UC8
+    U -->|"Reads response"| UC8
+
+    %% Reset flow
+    U -.->|"Optional reset"| UC7
+    UC7 -.->|"Clears Chroma collection,\nchain & history"| UC3
 
     %% Styling
     classDef actor fill:#6C5CE7,color:#fff,stroke:#4834DF,rx:8
     classDef usecase fill:#1C1C26,color:#E2E8F0,stroke:#2D2D3E
-    class U,G,F actor
-    class UC1,UC2,UC3,UC4,UC5,UC6,UC7 usecase
+    class U,GV,GL,C actor
+    class UC1,UC2,UC3,UC4,UC5,UC6,UC7,UC8 usecase
 ```
+
+---
 
 ### 🔑 Use Cases Explained
 
 | # | Use Case | Actor | Description |
 |---|----------|-------|-------------|
-| 1 | **Upload Document** | User | Drag-and-drop or select a PDF, DOCX, TXT, or CSV file via the sidebar uploader |
-| 2 | **Process & Embed Document** | System | File is chunked (1,000 chars / 200 overlap), embedded with `all-MiniLM-L6-v2`, and stored in a FAISS index. Skipped if the same file is re-uploaded (SHA-256 hash comparison) |
-| 3 | **Ask Question** | User | Type a natural-language question in the chat input |
-| 4 | **Retrieve Relevant Chunks** | System ↔ FAISS | Semantic similarity search returns the top-k most relevant document chunks |
-| 5 | **Generate Context-Aware Answer** | System ↔ Groq LLM | `ConversationalRetrievalChain` passes retrieved chunks + full chat history to Groq's LLM and streams back the answer |
-| 6 | **Reset Session** | User | Clears the FAISS index, conversation chain, and entire chat history to start fresh |
-| 7 | **View Chat History** | User | All prior Q&A pairs are rendered in the chat window with full conversational memory |
+| 1 | **Upload Document** | User | Drag-and-drop or select a PDF, DOCX, TXT, or CSV file via the sidebar uploader. |
+| 2 | **Process & Visual Extraction** | System ↔ Groq Vision | Extracts native text streams and detects embedded diagrams, charts, or scanned pages, generating thorough factual descriptions. |
+| 3 | **Neural Indexing** | System ↔ ChromaDB | Chunks content (1,000 chars / 200 overlap), computes embeddings with `all-MiniLM-L6-v2`, and stores them in ChromaDB. |
+| 4 | **Ask Question** | User | Enter natural-language queries about text, diagrams, data points, or tables. |
+| 5 | **Retrieve Relevant Context** | System ↔ ChromaDB | Semantic similarity search returns the most relevant text and visual chunk embeddings. |
+| 6 | **Generate Answer** | System ↔ Groq LLM | `ConversationalRetrievalChain` combines retrieved context with conversation history to synthesize accurate responses. |
+| 7 | **Reset Session** | User | Click `🔄 CLEAR & RESET SESSION` to purge active Chroma collections and start a new conversation. |
+| 8 | **View Chat History** | User | Prior question-and-answer pairs are rendered in chronological order with full conversational recall. |
