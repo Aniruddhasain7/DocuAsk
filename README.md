@@ -4,6 +4,10 @@
 
 ---
 
+[![Live Demo](https://img.shields.io/badge/🚀_Live_Demo-Open_App-00F5FF?style=for-the-badge&logo=streamlit&logoColor=black)](https://docuask.streamlit.app/)
+
+---
+
 ## ✨ Features
 
 - 📄 **Multi-format Document Ingestion** — Upload and analyze PDF, DOCX, DOC, TXT, and CSV files.
@@ -28,15 +32,15 @@
 
 ## 🛠️ Tech Stack
 
-| Layer | Technology | Details |
-| :--- | :--- | :--- |
-| **Frontend** | Streamlit `1.37.0` | Custom cyberpunk dark theme & glassmorphic HUD |
-| **LLM (Chat)** | Groq API — `openai/gpt-oss-120b` | Ultra-fast context-grounded reasoning |
-| **Vision AI** | Groq API — `qwen/qwen3.8-27b` | Document diagram, chart, and visual explanation |
-| **Embeddings** | HuggingFace — `all-MiniLM-L6-v2` | 384-dimensional dense neural embeddings |
-| **Vector Store** | **ChromaDB** (`langchain-chroma`) | In-memory ephemeral vector database |
-| **Framework** | LangChain `0.2.x` | `ConversationalRetrievalChain` |
-| **PDF Engine** | `pypdf` + `pypdfium2` | Text stream parsing & high-res visual page rendering |
+| Layer            | Technology                        | Details                                              |
+| :--------------- | :-------------------------------- | :--------------------------------------------------- |
+| **Frontend**     | Streamlit `1.37.0`                | Custom cyberpunk dark theme & glassmorphic HUD       |
+| **LLM (Chat)**   | Groq API — `openai/gpt-oss-120b`  | Ultra-fast context-grounded reasoning                |
+| **Vision AI**    | Groq API — `qwen/qwen3.8-27b`     | Document diagram, chart, and visual explanation      |
+| **Embeddings**   | HuggingFace — `all-MiniLM-L6-v2`  | 384-dimensional dense neural embeddings              |
+| **Vector Store** | **ChromaDB** (`langchain-chroma`) | In-memory ephemeral vector database                  |
+| **Framework**    | LangChain `0.2.x`                 | `ConversationalRetrievalChain`                       |
+| **PDF Engine**   | `pypdf` + `pypdfium2`             | Text stream parsing & high-res visual page rendering |
 
 ---
 
@@ -174,13 +178,13 @@ flowchart TD
 
 ### 🔑 Use Cases Explained
 
-| # | Use Case | Actor | Description |
-|---|----------|-------|-------------|
-| 1 | **Upload Document** | User | Drag-and-drop or select a PDF, DOCX, TXT, or CSV file via the sidebar uploader. |
-| 2 | **Process & Visual Extraction** | System ↔ Groq Vision | Extracts native text streams and detects embedded diagrams, charts, or scanned pages, generating thorough factual descriptions. |
-| 3 | **Neural Indexing** | System ↔ ChromaDB | Chunks content (1,000 chars / 200 overlap), computes embeddings with `all-MiniLM-L6-v2`, and stores them in ChromaDB. |
-| 4 | **Ask Question** | User | Enter natural-language queries about text, diagrams, data points, or tables. |
-| 5 | **Retrieve Relevant Context** | System ↔ ChromaDB | Semantic similarity search returns the most relevant text and visual chunk embeddings. |
-| 6 | **Generate Answer** | System ↔ Groq LLM | `ConversationalRetrievalChain` combines retrieved context with conversation history to synthesize accurate responses. |
-| 7 | **Reset Session** | User | Click `🔄 CLEAR & RESET SESSION` to purge active Chroma collections and start a new conversation. |
-| 8 | **View Chat History** | User | Prior question-and-answer pairs are rendered in chronological order with full conversational recall. |
+| #   | Use Case                        | Actor                | Description                                                                                                                     |
+| --- | ------------------------------- | -------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | **Upload Document**             | User                 | Drag-and-drop or select a PDF, DOCX, TXT, or CSV file via the sidebar uploader.                                                 |
+| 2   | **Process & Visual Extraction** | System ↔ Groq Vision | Extracts native text streams and detects embedded diagrams, charts, or scanned pages, generating thorough factual descriptions. |
+| 3   | **Neural Indexing**             | System ↔ ChromaDB    | Chunks content (1,000 chars / 200 overlap), computes embeddings with `all-MiniLM-L6-v2`, and stores them in ChromaDB.           |
+| 4   | **Ask Question**                | User                 | Enter natural-language queries about text, diagrams, data points, or tables.                                                    |
+| 5   | **Retrieve Relevant Context**   | System ↔ ChromaDB    | Semantic similarity search returns the most relevant text and visual chunk embeddings.                                          |
+| 6   | **Generate Answer**             | System ↔ Groq LLM    | `ConversationalRetrievalChain` combines retrieved context with conversation history to synthesize accurate responses.           |
+| 7   | **Reset Session**               | User                 | Click `🔄 CLEAR & RESET SESSION` to purge active Chroma collections and start a new conversation.                               |
+| 8   | **View Chat History**           | User                 | Prior question-and-answer pairs are rendered in chronological order with full conversational recall.                            |
